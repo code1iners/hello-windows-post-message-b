@@ -1,65 +1,69 @@
 <script setup lang="ts">
 import { ref } from "vue";
+import { usePopup } from "@ce1pers/use-window";
+import type { SendMessage } from "@ce1pers/use-window/dist/src/usePopup/types";
 
-// Types
-interface InputForm {
-  email: string;
-  password: string;
-}
-
-interface SendMessage {
-  data: string | InputForm;
-  command: "open" | "data";
-}
+const {
+  sendMessageToSourceOrigin,
+  setSourceOrigin,
+  getSourceOrigin,
+  setTargetOrigin,
+  getTargetOrigin,
+} = usePopup({
+  onMessageCallback,
+});
 
 // Variables.
 const allowOrigins = [
   "http://127.0.0.1:5555",
+  "http://localhost:5555",
   "https://codeliners-post-message-window-a.netlify.app",
 ];
-let targetOrigin: string | undefined = undefined;
-let sourceOrigin: MessageEventSource | null = null;
-let isPageInvalid = ref(false);
+
+const isPageInvalid = ref(false);
+const isReady = ref(false);
 
 const form = {
   email: "",
   password: "",
 };
 
-window.addEventListener("message", receiveMessage, false);
-
-function receiveMessage(event: MessageEvent) {
-  targetOrigin = allowOrigins.find((origin) => origin === event.origin);
+function onMessageCallback(event: MessageEvent) {
+  const targetOrigin = allowOrigins.find((origin) => origin === event.origin);
   if (!targetOrigin) return;
-  const { data } = event;
+  // Set target origin for send post message.
+  setTargetOrigin(targetOrigin);
+
+  const { data, source } = event;
   const parsedData = JSON.parse(data) as SendMessage;
 
-  if (parsedData.command === "open") {
-    sourceOrigin = event.source;
+  switch (parsedData.type) {
+    case "open":
+      if (source) {
+        // Set source origin.
+        setSourceOrigin(source);
+        // Send opened signal.
+        sendMessageToSourceOrigin({ data: "The window opened.", type: "open" });
+      }
+      break;
 
-    sendMessage({ data: "opened", command: "open" });
-    return;
+    case "ready":
+      // Set ready status.
+      isReady.value = true;
+      break;
   }
-}
-
-function sendMessage({ data, command }: SendMessage) {
-  if (!sourceOrigin) return;
-
-  sourceOrigin.postMessage(JSON.stringify({ data, command }), {
-    targetOrigin,
-  });
 }
 
 async function onSubmit() {
   // Has source origin?
-  if (!sourceOrigin) {
+  if (!getSourceOrigin() || !getTargetOrigin()) {
     alert("This page is invalid.\nPlease try again valid way.");
     isPageInvalid.value = true;
     return;
   }
 
   // Send message to opened origin.
-  sendMessage({ data: form, command: "data" });
+  sendMessageToSourceOrigin({ type: "data", data: form });
 
   // Close window.
   window.close();
@@ -68,19 +72,37 @@ async function onSubmit() {
 
 <template>
   <div>
-    <p v-if="isPageInvalid">This page is invalid.</p>
-    <form v-else class="form" @submit.prevent="onSubmit">
-      <input type="text" placeholder="Email" v-model="form.email" />
-      <input type="password" placeholder="Password" v-model="form.password" />
-      <button type="submit">Submit</button>
-    </form>
+    <div v-if="isReady">
+      <p v-if="isPageInvalid">This page is invalid.</p>
+      <article class="form__container" v-else>
+        <h3>Sample Login Form</h3>
+        <form class="form" @submit.prevent="onSubmit">
+          <input type="text" placeholder="Email" v-model="form.email" />
+          <input
+            type="password"
+            placeholder="Password"
+            v-model="form.password"
+          />
+          <button type="submit">Submit</button>
+        </form>
+      </article>
+    </div>
+    <div v-else>Waiting...</div>
   </div>
 </template>
 
 <style scoped>
+.form__container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
 .form {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+.form input {
+  padding: 10px;
 }
 </style>
