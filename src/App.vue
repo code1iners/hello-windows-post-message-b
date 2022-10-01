@@ -10,7 +10,10 @@ interface SendMessage {
   command: "open" | "data";
 }
 
-const allowOrigins = ["http://127.0.0.1:5174"];
+const allowOrigins = [
+  "http://127.0.0.1:5174",
+  "https://codeliners-post-message-window-a.netlify.app",
+];
 let targetOrigin: string | undefined = undefined;
 let sourceOrigin: MessageEventSource | null = null;
 
