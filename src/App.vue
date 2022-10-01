@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import { usePopup } from "@ce1pers/use-window";
-import type { SendMessage } from "@ce1pers/use-window/dist/src/usePopup/types";
+import { usePopup, SendMessage } from "@ce1pers/window-helpers";
 
 const {
   sendMessageToSourceOrigin,
